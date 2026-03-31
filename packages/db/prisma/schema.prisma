@@ -1,0 +1,213 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ─── Enums ────────────────────────────────────────────────────
+
+enum UserRole {
+  TALENT
+  CLIENT
+  ADMIN
+}
+
+enum SkillCategory {
+  RAG
+  FINE_TUNING
+  PROMPT_ENGINEERING
+  ML_ENGINEERING
+  AI_ETHICS
+  LLM_OPS
+  MULTIMODAL
+  OTHER
+}
+
+enum ProjectStatus {
+  DRAFT
+  OPEN
+  IN_REVIEW
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  ESCROWED
+  RELEASED
+  REFUNDED
+}
+
+// ─── Models ───────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String
+  role      UserRole @default(TALENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  talentProfile    TalentProfile?
+  projects         Project[]      @relation("ClientProjects")
+  applications     Application[]
+  reviewsGiven     Review[]       @relation("ReviewsGiven")
+  reviewsReceived  Review[]       @relation("ReviewsReceived")
+  paymentsAsClient Payment[]      @relation("ClientPayments")
+  paymentsAsTalent Payment[]      @relation("TalentPayments")
+
+  @@index([clerkId])
+  @@index([role])
+  @@map("users")
+}
+
+model TalentProfile {
+  id            String                      @id @default(cuid())
+  userId        String                      @unique
+  bio           String                      @db.Text
+  hourlyRate    Decimal                     @db.Decimal(10, 2)
+  availability  String
+  location      String
+  languages     String[]
+  portfolioUrl  String?
+  overallScore  Decimal                     @default(0) @db.Decimal(3, 1)
+  totalProjects Int                         @default(0)
+  embedding     Unsupported("vector(1536)")?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillVerifications SkillVerification[]
+
+  @@index([overallScore(sort: Desc)])
+  @@index([hourlyRate])
+  @@map("talent_profiles")
+}
+
+model Skill {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  category    SkillCategory
+  description String        @db.Text
+
+  verifications SkillVerification[]
+
+  @@index([category])
+  @@map("skills")
+}
+
+model SkillVerification {
+  id              String   @id @default(cuid())
+  talentId        String
+  skillId         String
+  score           Int      @db.SmallInt
+  challengeText   String   @db.Text
+  responseText    String   @db.Text
+  evaluationNotes String?  @db.Text
+  verifiedAt      DateTime @default(now())
+  expiresAt       DateTime
+
+  talent TalentProfile @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  skill  Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([talentId, skillId])
+  @@index([score(sort: Desc)])
+  @@map("skill_verifications")
+}
+
+model Project {
+  id             String                      @id @default(cuid())
+  clientId       String
+  title          String
+  description    String                      @db.Text
+  budget         Decimal                     @db.Decimal(12, 2)
+  timeline       String
+  requiredSkills String[]
+  status         ProjectStatus               @default(DRAFT)
+  embedding      Unsupported("vector(1536)")?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  client       User          @relation("ClientProjects", fields: [clientId], references: [id], onDelete: Cascade)
+  applications Application[]
+  reviews      Review[]
+  payments     Payment[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("projects")
+}
+
+model Application {
+  id           String            @id @default(cuid())
+  projectId    String
+  talentId     String
+  coverLetter  String            @db.Text
+  proposedRate Decimal           @db.Decimal(10, 2)
+  status       ApplicationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  talent  User    @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, talentId])
+  @@index([status])
+  @@map("applications")
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  projectId    String
+  reviewerId   String
+  revieweeId   String
+  rating       Int      @db.SmallInt
+  comment      String   @db.Text
+  skillRatings Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, reviewerId])
+  @@index([revieweeId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  projectId             String
+  clientId              String
+  talentId              String
+  amount                Decimal       @db.Decimal(12, 2)
+  platformFee           Decimal       @db.Decimal(12, 2)
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?       @unique
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client  User    @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
+  talent  User    @relation("TalentPayments", fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@map("payments")
+}

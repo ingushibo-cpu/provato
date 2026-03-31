@@ -1,0 +1,14 @@
+{
+  "name": "@provato/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./eslint": "./src/eslint.js",
+    "./typescript": "./tsconfig.base.json",
+    "./tailwind": "./src/tailwind.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
