@@ -168,6 +168,8 @@ model Application {
 
   @@unique([projectId, talentId])
   @@index([status])
+  @@index([talentId])
+  @@index([projectId, status])
   @@map("applications")
 }
 
@@ -187,6 +189,7 @@ model Review {
 
   @@unique([projectId, reviewerId])
   @@index([revieweeId])
+  @@index([reviewerId])
   @@index([rating])
   @@map("reviews")
 }
@@ -208,6 +211,8 @@ model Payment {
   talent  User    @relation("TalentPayments", fields: [talentId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([clientId])
+  @@index([talentId])
   @@index([status])
   @@map("payments")
 }

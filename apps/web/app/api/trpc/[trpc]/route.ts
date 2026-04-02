@@ -1,31 +1,13 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter, type Context } from "@provato/api";
-import { prisma } from "@provato/db";
-import { auth } from "@clerk/nextjs/server";
+import { appRouter } from "@provato/api";
+import { createTRPCContext } from "@/lib/trpc-context";
 
-const handler = async (req: Request) => {
-  const { userId: clerkId } = await auth();
-
-  let dbUser: { id: string; role: "TALENT" | "CLIENT" | "ADMIN" } | null =
-    null;
-
-  if (clerkId) {
-    dbUser = await prisma.user.findUnique({
-      where: { clerkId },
-      select: { id: true, role: true },
-    });
-  }
-
-  return fetchRequestHandler({
+const handler = (req: Request) =>
+  fetchRequestHandler({
     endpoint: "/api/trpc",
     req,
     router: appRouter,
-    createContext: (): Context => ({
-      prisma,
-      userId: dbUser?.id ?? null,
-      userRole: dbUser?.role ?? null,
-    }),
+    createContext: createTRPCContext,
   });
-};
 
 export { handler as GET, handler as POST };
