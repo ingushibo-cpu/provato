@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { TRPCProvider } from "@/trpc/provider";
+import { Toaster } from "@provato/ui";
 import "@provato/ui/styles";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -25,7 +26,10 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="min-h-screen bg-background font-sans antialiased">
-          <TRPCProvider>{children}</TRPCProvider>
+          <TRPCProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </TRPCProvider>
         </body>
       </html>
     </ClerkProvider>

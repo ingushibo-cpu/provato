@@ -133,6 +133,25 @@ export const applicationRouter = router({
       });
     }),
 
+  listByTalent: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.application.findMany({
+      where: { talentId: ctx.userId },
+      include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            budget: true,
+            timeline: true,
+            status: true,
+            client: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
   withdraw: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

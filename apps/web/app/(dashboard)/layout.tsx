@@ -1,19 +1,25 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { LayoutDashboard, FolderOpen, Users, Settings } from "lucide-react";
+import { createServerCaller } from "@/trpc/server";
+import { NavItems } from "./_components/nav-items";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderOpen },
-  { href: "/talents", label: "Talents", icon: Users },
-  { href: "/admin", label: "Admin", icon: Settings },
-];
+type Role = "TALENT" | "CLIENT" | "ADMIN";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  let role: Role = "TALENT";
+
+  try {
+    const caller = await createServerCaller();
+    const me = await caller.user.me();
+    role = me.role;
+  } catch {
+    // User not in DB yet (first sign-in) or unauthenticated — default to TALENT
+  }
+
   return (
     <div className="flex min-h-screen">
       <aside className="w-64 border-r bg-muted/30">
@@ -23,16 +29,7 @@ export default function DashboardLayout({
           </Link>
         </div>
         <nav className="space-y-1 p-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
+          <NavItems role={role} />
         </nav>
       </aside>
 
